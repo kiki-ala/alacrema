@@ -460,6 +460,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fizzle"
+version = "0.1.0"
+dependencies = [
+ "anathema",
+ "anyhow",
+ "futures",
+ "portable-pty",
+ "rand",
+ "smol",
+]
+
+[[package]]
 name = "flume"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

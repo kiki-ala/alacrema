@@ -4,7 +4,7 @@ authors = ["kikiala"]
 edition = "2024"
 
 [workspace]
-members = ["alacrema-demo", "canvas-effects"]
+members = ["fizzle", "alacrema-demo", "canvas-effects"]
 resolver = "2"
 
 [workspace.dependencies]
