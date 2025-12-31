@@ -152,7 +152,7 @@ impl Component for CanvasFX {
 
             let canvas = e.to::<Canvas>();
             let style = Style::new();
-            let mut rng = StdRng::from_rng(&mut rand::rng());
+            let mut rng = rand::rng();
 
             let output = a
                 .get("output")
@@ -182,7 +182,7 @@ impl Component for CanvasFX {
                     let mut at_coord = canvas.get(coord);
 
                     if (at_coord.is_none() || (at_coord.is_some() && at_coord.unwrap().0 == ' '))
-                        && rng.next_u32() < (u32::MAX / 1024)
+                        && rng.random::<f32>() < 0.001
                     {
                         canvas.put(BUBBLE.chars().nth(0).unwrap(), style, coord);
                     } else if at_coord.is_some() {
