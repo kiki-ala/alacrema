@@ -1,0 +1,28 @@
+vstack
+	expand
+		hstack
+			expand
+				border
+					@canvasfx
+			expand
+				border
+					@canvasfx
+	expand
+		hstack
+			expand
+				border
+					@canvasfx
+			expand
+				border
+					@canvasfx
+
+position [top: 1, left: 1, placement: "absolute"]
+	hstack
+		border
+			hstack
+				padding [left: 1]
+					text "FPS: "
+				padding [right: 1]
+					text fps
+		border
+			text "(j/k up/down)"

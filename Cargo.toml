@@ -1,0 +1,47 @@
+[workspace.package]
+version = "0.1.0"
+authors = ["kikiala"]
+edition = "2024"
+
+[workspace]
+members = ["alacrema-demo", "canvas-effects"]
+resolver = "2"
+
+[workspace.dependencies]
+
+#    ______________      o  ~   - whee!
+#   /OOOOOOOOOOOOOO\    -m-  ~
+#  /################\    \\ 
+#  |IDEAS GRAVEYARD.|
+#/-|----------------|   .
+#| |.  .R .I .P .  .|  ,  _
+#| |.. .  .  .  .* .| .  / ^
+#|_r_|_..__i__.__|__|_|,. ., .+
+
+# alacrema-pty = { path = "alacrema-pty" }
+
+# bytes = "1.11.0"
+# vt100 = "0.16.2"
+# rustix = { version = "1.0.8", features = ["pty", "process", "fs", "termios"] }
+# tokio = { version = "1.47.1", features = ["fs", "process", "rt", "sync", "macros", "net"] }
+
+# anyhow = "1.0.100"
+# env_logger = "0.11.8"
+# flax = "0.7.1"
+
+# libspa = "0.9.2"
+# pipewire = "0.9.2"
+# ffmpeg-sidecar = "2.4.0"
+# tunes = "1.1.0"
+
+# tokio = { version = "1.48.0", features = ["process", "sync", "io-util", "rt-multi-thread", "time"] }
+# tokio-process-tools = "0.7.2"
+# futures-signals = "0.3.34"
+# tracing = "0.1.44"
+# tracing-tree = "0.4.1"
+
+# anathema = { version = "0.2.11", features = ["serde"] }
+# alacritty_terminal = "0.25.1"
+# polling = "3.11.0"
+
+# vte = "0.15.0"
