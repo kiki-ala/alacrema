@@ -4,17 +4,22 @@ use anathema::default_widgets::Canvas;
 use anathema::prelude::*;
 use portable_pty::PtyPair;
 use portable_pty::PtySystem;
-use rand::prelude::*;
 use std::cmp::max;
 use std::collections::VecDeque;
 use std::time::Duration;
 use std::time::Instant;
 
-use anyhow::anyhow;
-use futures::prelude::*;
+extern crate rand;
+extern crate rand_chacha;
+use rand::{Rng, SeedableRng};
+
+// use anyhow::anyhow;
+// use futures::prelude::*;
+// use std::ffi::OsString;
+
+use portable_pty::PtySize;
 use portable_pty::native_pty_system;
-use portable_pty::{CommandBuilder, PtySize};
-use std::ffi::OsString;
+// use portable_pty::{CommandBuilder, PtySize};
 
 const BUBBLE: &str = "·⋅◌⊙⊚⦾⁜";
 
@@ -22,16 +27,9 @@ enum UserRequestType {
     NewPTY,
 }
 
+#[derive(Default)]
 struct CommandQueue {
     vd: VecDeque<UserRequestType>,
-}
-
-impl Default for CommandQueue {
-    fn default() -> Self {
-        Self {
-            vd: VecDeque::new(),
-        }
-    }
 }
 
 #[derive(State)]
@@ -41,13 +39,13 @@ struct UIMainState {
     fps: Value<i32>,
 }
 
-struct PtySystemLoom {
+struct PseudoTerminalLoom {
     pty_system: Option<Box<dyn PtySystem + Send>>,
     ptys: Vec<PtyPair>,
 }
 
-impl PtySystemLoom {
-    fn new() -> Self {
+impl PseudoTerminalLoom {
+    fn _new() -> Self {
         Self {
             pty_system: None,
             ptys: vec![],
@@ -72,9 +70,6 @@ impl PtySystemLoom {
             pixel_width: 0,
             pixel_height: 0,
         })?);
-
-        println!("pty spawned!");
-
         Ok(())
     }
 }
@@ -83,14 +78,11 @@ impl UIMainState {
     fn new() -> Self {
         Self {
             command_queue: CommandQueue::default(),
-            // pty_system: None,
-            // ptys: vec![],
             fps: 24.into(),
         }
     }
 
     pub fn request_new_pty(&mut self) {
-        println!("request heard!");
         self.command_queue.vd.push_front(UserRequestType::NewPTY);
     }
 }
@@ -118,7 +110,7 @@ impl Component for UIMain {
         // haphazardly simply taking the back one
         if let Some(cmd) = state.command_queue.vd.pop_back() {
             match cmd {
-                UserRequestType::NewPTY => state.spawn_pty(),
+                UserRequestType::NewPTY => state.request_new_pty(),
             };
         }
 
@@ -150,12 +142,96 @@ impl Component for UIMain {
             KeyCode::Char('q') => context.stop_runtime(),
             KeyCode::Char('k') => {
                 let current = *state.fps.to_mut();
-                if current < 240 {
+                if current < 30 {
                     *state.fps.to_mut() += 1;
                 }
             }
             _ => {}
         }
+    }
+}
+
+#[derive(State)]
+struct StatusLineState {}
+
+impl StatusLineState {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+struct StatusLine {}
+
+impl StatusLine {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Component for StatusLine {
+    type Message = ();
+    type State = StatusLineState;
+
+    fn on_tick(
+        &mut self,
+        _state: &mut Self::State,
+        mut _interior: Children<'_, '_>,
+        _context: Context<'_, '_, Self::State>,
+        _dt: Duration,
+    ) {
+        // unused for now
+    }
+
+    fn on_key(
+        &mut self,
+        _key: KeyEvent,
+        _state: &mut Self::State,
+        mut _interior: Children<'_, '_>,
+        _context: Context<'_, '_, Self::State>,
+    ) {
+        // unused for now
+    }
+}
+
+#[derive(State)]
+struct StatusFeedState {}
+
+impl StatusFeedState {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+struct StatusFeed {}
+
+impl StatusFeed {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Component for StatusFeed {
+    type Message = ();
+    type State = StatusFeedState;
+
+    fn on_tick(
+        &mut self,
+        _state: &mut Self::State,
+        mut _interior: Children<'_, '_>,
+        _context: Context<'_, '_, Self::State>,
+        _dt: Duration,
+    ) {
+        // unused for now
+    }
+
+    fn on_key(
+        &mut self,
+        _key: KeyEvent,
+        _state: &mut Self::State,
+        mut _interior: Children<'_, '_>,
+        _context: Context<'_, '_, Self::State>,
+    ) {
+        // unused for now
     }
 }
 
@@ -184,6 +260,27 @@ impl CanvasFX {
             anim_tick_per: 1.0 / 24.0,
         }
     }
+}
+
+pub fn safe_neighbor(sz: (u16, u16), coord: (u16, u16), delta: (i8, i8)) -> (u16, u16) {
+    let mut test_coord = (
+        coord.0 as i32 + delta.0 as i32,
+        coord.1 as i32 + delta.1 as i32,
+    );
+    if test_coord.0 <= 0 {
+        if test_coord.1 <= 0 {
+            test_coord = (0, 0);
+        } else if test_coord.1 >= sz.1 as i32 {
+            test_coord = (0, sz.1 as i32);
+        }
+    } else if test_coord.0 >= sz.0 as i32 {
+        if test_coord.1 <= 0 {
+            test_coord = (sz.0 as i32, 0);
+        } else if test_coord.1 >= sz.1 as i32 {
+            test_coord = (sz.0 as i32, sz.1 as i32);
+        }
+    }
+    (test_coord.0 as u16, test_coord.1 as u16)
 }
 
 impl Component for CanvasFX {
@@ -220,7 +317,6 @@ impl Component for CanvasFX {
 
             let canvas = e.to::<Canvas>();
             let style = Style::new();
-            let mut rng = rand::rng();
 
             // let output = a
             //     .get("output")
@@ -229,45 +325,53 @@ impl Component for CanvasFX {
             //     .as_str()
             //     .unwrap()
             //     .to_string();
-            let output = "text placeholder";
-            let chars = output.chars();
 
-            let mut x_index = 0;
-            let mut y_index = 0;
-            // rectangles are weird huh
-            for char in chars {
-                if char == '\n' {
-                    y_index += 1;
-                    x_index = 0;
-                    continue;
+            if self.anim_tick.is_multiple_of(4) {
+                let mut x_index = 0;
+                let mut y_index = 0;
+                // rectangles are weird huh
+                // this puts the output text on the canvas
+                let output = "text placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\ntext placeholder text placeholder text placeholder text placeholder\n";
+                for char in output.chars() {
+                    if char == '\n' {
+                        y_index += 1;
+                        x_index = 0;
+                        continue;
+                    }
+                    canvas.put(char, style, (x_index, y_index));
+                    x_index += 1;
                 }
-                canvas.put(char, style, (x_index, y_index));
-                x_index += 1;
             }
 
+            let mut rng = rand_chacha::ChaCha8Rng::from_os_rng();
             for y in 0..h {
                 for x in 0..w {
-                    let mut coord = (x, y);
-                    let mut at_coord = canvas.get(coord);
+                    let coord = (x, y);
+                    let at_coord = canvas.get(coord);
 
                     if (at_coord.is_none() || (at_coord.is_some() && at_coord.unwrap().0 == ' '))
-                        && rng.random::<f32>() < 0.001
+                        && rng.random::<f32>() < 0.01
                     {
                         canvas.put(BUBBLE.chars().nth(0).unwrap(), style, coord);
                     } else if at_coord.is_some() {
                         let c = at_coord.unwrap();
                         for (idx, anim_frame) in BUBBLE.chars().enumerate() {
                             if c.0 == anim_frame {
-                                let next = idx + 1;
-                                let next_char = BUBBLE.chars().nth(next).unwrap_or(' ');
-                                canvas.put(' ', style, coord);
-                                if coord.1 > 0 {
-                                    coord.1 -= 1;
+                                // if the bubble is reaching it, it gets erased
+                                canvas.erase(coord);
+
+                                let next_char = BUBBLE.chars().nth(idx + 1);
+                                // let next_next_char = BUBBLE.chars().nth(idx + 2);
+                                let coord_above = safe_neighbor((w, h), coord, (0, -1));
+
+                                if let Some(nx) = next_char {
+                                    canvas.put(nx, style, coord_above);
                                 }
-                                at_coord = canvas.get(coord);
-                                if at_coord.is_none() {
-                                    canvas.put(next_char, style, coord);
+                                if let Some(_above_char) = canvas.get(coord_above) && idx > (BUBBLE.len() / 2) {
+                                    canvas.erase(safe_neighbor((w, h), coord, (1, -1)));
+                                    canvas.erase(safe_neighbor((w, h), coord, (-1, -1)));
                                 }
+
                             }
                         }
                     }
@@ -359,14 +463,37 @@ fn main() -> anyhow::Result<()> {
         builder
             .component("main", "src/ui.aml", UIMain::new(), UIMainState::new())
             .unwrap();
+
+        // statusline prototype
+        builder
+            .prototype(
+                "statusline",
+                "src/statusline.aml",
+                StatusLine::new,
+                StatusLineState::new,
+            )
+            .unwrap();
+
+        // statusfeed prototype
+        builder
+            .prototype(
+                "statusfeed",
+                "src/statusfeed.aml",
+                StatusFeed::new,
+                StatusFeedState::new,
+            )
+            .unwrap();
+
+        // canvasfx prototype
         builder
             .prototype(
                 "canvasfx",
-                "src/canvasFX.aml",
+                "src/canvasfx.aml",
                 CanvasFX::new,
                 CanvasFXState::new,
             )
             .unwrap();
+
         builder
             .finish(&mut backend, |runtime, backend| runtime.run(backend))
             .unwrap();
